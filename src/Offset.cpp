@@ -1,12 +1,8 @@
-#ifndef OFFSET_H
-#define OFFSET_H
-
 #include "Offset.h"
 #include "GPIO.h"
 
 Offset::Offset(){
     offsetSet=false;
-    offsetSetTemp=false;
     offsetChange=false; 
     offsetChangeBlock=false;
 }
@@ -15,12 +11,13 @@ void Offset::OffsetChange(const std::vector<AccelStepper*>& steppers, const std:
     if(offsetChange && !offsetChangeBlock)
     {
       for (size_t i = 0; i < steppers.size(); ++i) {
-            if (!offsetSet) {
-                steppers[i]->moveTo(joints[i]->StepsOffset()); 
-            } else {
-                steppers[i]->moveTo(-joints[i]->StepsOffset()); 
-            }
+        if (!offsetSet) {
+          steppers[i]->moveTo(joints[i]->StepsOffset()); 
+        } 
+        else {
+          steppers[i]->moveTo(-joints[i]->StepsOffset()); 
         }
+      }
       offsetChangeBlock=true;
     }
 }
@@ -28,19 +25,19 @@ void Offset::OffsetChange(const std::vector<AccelStepper*>& steppers, const std:
 RunningState Offset::OffsetMove(const std::vector<AccelStepper*>& steppers){
     if(offsetChange && offsetChangeBlock)
     {
-        bool running=false;
-        for (size_t i = 0; i < steppers.size(); ++i) 
-        {
-            steppers[i]->run();
-            if(steppers[i]->distanceToGo()!=0) running=true;
-        }
+      bool running=false;
+      for (size_t i = 0; i < steppers.size(); ++i) 
+      {
+        steppers[i]->run();
+        if(steppers[i]->distanceToGo()!=0) running=true;
+      }
 
       if(!running)
       {  
         offsetSet=!offsetSet;
         for (size_t i = 0; i < steppers.size(); ++i) 
         {
-            steppers[i]->setCurrentPosition(0);
+          steppers[i]->setCurrentPosition(0);
         }
 
         if(!offsetSet)
@@ -56,5 +53,3 @@ RunningState Offset::OffsetMove(const std::vector<AccelStepper*>& steppers){
     }
     return NotRunning;
 }
-
-#endif // OFFSET_H

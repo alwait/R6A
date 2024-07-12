@@ -1,25 +1,27 @@
-#ifndef ROBOT_H
-#define ROBOT_H
-
 #include "Robot.h"
 
 Robot::Robot(std::vector<AccelStepper*>& Steppers, std::vector<Joint*>& Joints)
-    : steppers(Steppers), joints(Joints), offset() {
-        running=false;
+    : steppers(Steppers), joints(Joints), offset(), stop(){
+      running=false;
+      enable=false;
+      stage=0;
+      for (size_t i = 0; i < steppers.size(); ++i) {
+        steppers[i]->setMaxSpeed(default_speed);
+        steppers[i]->setAcceleration(default_acceleration);
+    }
 }
 
 AccelStepper* Robot::getStepper(size_t index) const {
     if (index > 0 && index <= steppers.size()) {
-        return steppers[index - 1];
+      return steppers[index - 1];
     } else {
-        return nullptr; // Zwróć nullptr dla niepoprawnego indeksu
+      return nullptr;
     }
 }
 
 void Robot::moveOffset(){
     offset.OffsetChange(steppers, joints);
 
-    // Offset move if controlled 
     RunningState state=offset.OffsetMove(steppers);
 
     if(state==Stop) running=false;
@@ -27,16 +29,37 @@ void Robot::moveOffset(){
 }
 
 void Robot::emergencyStop(){
-    
+    stop.emergencyChange(steppers);
+
+    RunningState state=stop.emergencyMove(steppers);
+
+    if(state==Stop) running=false;
+    else if(state==Running)
+    {
+      running=true;
+      offset.setOffsetChange(false);
+      offset.setOffsetChangeBlock(false);
+    }
 }
 
 void Robot::emergencyRelease(){
+    stop.returnChange(steppers);
+
+    RunningState state=stop.returnMove(steppers);
+
+    if(state==Stop) running=false;
+    else if(state==Running) running=true;
+
+    if(state==Stop && !offset.getOffsetSet())
+    {
+      digitalWrite(ENA_PIN,HIGH);
+      digitalWrite(LED_PIN,HIGH);
+    }
     
 }
 
-void Robot::moveTestStages(){
-    int stage=0;
-      if(stage==0)
+int Robot::moveTestStages(){
+    if(stage==0)
     {
       getStepper(1)->moveTo(joints[0]->AngleToSteps(90));
       getStepper(2)->moveTo(400);  
@@ -96,9 +119,8 @@ void Robot::moveTestStages(){
     else if(stage==5)
     {
       running=false;
-      stage=-1;
-      delay(500);
+      stage=0;
+      return 0;
     }
+    return 1;
 }
-
-#endif // ROBOT
