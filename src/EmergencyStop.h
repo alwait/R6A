@@ -22,8 +22,11 @@ public:
     RunningState emergencyMove(const vector<AccelStepper*>&);
     void returnChange(const std::vector<AccelStepper*>&);
     RunningState returnMove(const vector<AccelStepper*>&);
+    void unlockMove(const std::vector<AccelStepper*>&);
     void setStopChange(bool StopChange) { stopChange = StopChange; }
     void setReturnChange(bool UnlockChange) { unlockChange = UnlockChange; }
+    bool getReturnChange() { return unlockChange; }
+    void stopReset();
 };
 
 #endif // STOP

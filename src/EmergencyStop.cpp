@@ -7,14 +7,26 @@ EmergencyStop::EmergencyStop(){
     stopChangeBlock=false;
 }
 
+void EmergencyStop::stopReset(){
+    stopSet=false;
+    stopChange=false;
+    stopChangeBlock=false;
+    unlockChange=false; 
+    unlockChangeBlock=false;
+}
+
 void EmergencyStop::emergencyChange(const std::vector<AccelStepper*>& steppers){
     if(stopChange && !stopChangeBlock){
         for (size_t i = 0; i < steppers.size(); ++i) 
         {
+            steppers[i]->setAcceleration(2000);
+            steppers[i]->setMaxSpeed(400);
             steppers[i]->stop();
         }
         stopSet=true;
         stopChangeBlock=true;
+        unlockChange=false;
+        unlockChangeBlock=false;
     }
 }
 
@@ -42,6 +54,8 @@ void EmergencyStop::returnChange(const std::vector<AccelStepper*>& steppers){
     if(unlockChange && !unlockChangeBlock){
         for (size_t i = 0; i < steppers.size(); ++i) 
         {
+            steppers[i]->setAcceleration(200);
+            steppers[i]->setMaxSpeed(800);
             steppers[i]->moveTo(0);
         }
         unlockChangeBlock=true;
@@ -68,4 +82,5 @@ RunningState EmergencyStop::returnMove(const std::vector<AccelStepper*>& stepper
     }
     return NotRunning;
 }
+
 

@@ -23,6 +23,8 @@ public:
     void setOffsetChangeBlock(bool OffsetChangeBlock) { offsetChangeBlock = OffsetChangeBlock; }
     void OffsetChange(const vector<AccelStepper*>&, const vector<Joint*>&);
     RunningState OffsetMove(const vector<AccelStepper*>&);
+    void disableOffset() {offsetSet=false; };
+    void offsetReset();
 };
 
 #endif 

@@ -9,20 +9,35 @@ Joint::Joint(){
     jointGear=1;
     microstepping=microsteps_default;
     offsetAngle=0;
+    minAngle=-180;
+    maxAngle=180;
 }
 
-Joint::Joint(int MotorGear, int JointGear){
+Joint::Joint(int MotorGear, int JointGear, double MinAngle, double MaxAngle){
     motorGear=MotorGear;
     jointGear=JointGear;
     microstepping=microsteps_default;
     offsetAngle=0;
+    minAngle=MinAngle;
+    maxAngle=MaxAngle;
 }
 
-Joint::Joint(int MotorGear, int JointGear, double OffsetAngle){
+Joint::Joint(double OffsetAngle, double MinAngle, double MaxAngle){
+    motorGear=1;
+    jointGear=1;
+    microstepping=microsteps_default;
+    offsetAngle=OffsetAngle;
+    minAngle=MinAngle;
+    maxAngle=MaxAngle;
+}
+
+Joint::Joint(int MotorGear, int JointGear, double OffsetAngle, double MinAngle, double MaxAngle){
     motorGear=MotorGear;
     jointGear=JointGear;
     microstepping=microsteps_default;
     offsetAngle=OffsetAngle;
+    minAngle=MinAngle;
+    maxAngle=MaxAngle;
 }
 
 double Joint::Ratio(){

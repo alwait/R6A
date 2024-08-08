@@ -19,13 +19,37 @@ AccelStepper* Robot::getStepper(size_t index) const {
     }
 }
 
+void Robot::setHome(){
+  for (size_t i = 0; i < steppers.size(); ++i) 
+  {
+    steppers[i]->setCurrentPosition(0);
+    steppers[i]->moveTo(0);
+  }
+  running=false;
+}
+
 void Robot::moveOffset(){
-    offset.OffsetChange(steppers, joints);
 
-    RunningState state=offset.OffsetMove(steppers);
+  if(offset.getOffsetChange() && !offset.getOffsetChangeBlock()){ // first run
+    this->calculateMaxSpeed(this->anglesToSteps(this->getOffsets()));
+  }
 
-    if(state==Stop) running=false;
-    else if(state==Running) running=true;
+  offset.OffsetChange(steppers, joints);
+
+  RunningState state=offset.OffsetMove(steppers);
+    
+  if(state==Stop) running=false;
+  else if(state==Running) running=true;
+}
+
+vector<double> Robot::getOffsets(){
+
+  vector<double> steps;
+  
+  for (size_t i = 0; i < steppers.size(); ++i){
+    steps.push_back(joints[i]->StepsOffset());
+  }
+  return steps;
 }
 
 void Robot::emergencyStop(){
@@ -33,12 +57,13 @@ void Robot::emergencyStop(){
 
     RunningState state=stop.emergencyMove(steppers);
 
-    if(state==Stop) running=false;
+    if(state==Stop){
+      running=false;
+      this->setMovingSpeedDefault();
+    }
     else if(state==Running)
     {
       running=true;
-      offset.setOffsetChange(false);
-      offset.setOffsetChangeBlock(false);
     }
 }
 
@@ -47,8 +72,16 @@ void Robot::emergencyRelease(){
 
     RunningState state=stop.returnMove(steppers);
 
-    if(state==Stop) running=false;
-    else if(state==Running) running=true;
+    if(state==Stop){
+      offset.setOffsetChange(false);
+      offset.setOffsetChangeBlock(false);
+      running=false;
+      stage=0;
+      this->setMovingSpeedDefault();
+    }
+    else if(state==Running){
+      running=true;
+    }
 
     if(state==Stop && !offset.getOffsetSet())
     {
@@ -58,69 +91,264 @@ void Robot::emergencyRelease(){
     
 }
 
-int Robot::moveTestStages(){
-    if(stage==0)
-    {
-      getStepper(1)->moveTo(joints[0]->AngleToSteps(90));
-      getStepper(2)->moveTo(400);  
-      getStepper(3)->moveTo(1000); 
-      stage++;
-      running=true;
+void Robot::setMovingSpeed(float multiplier){
+  for (size_t i = 0; i < steppers.size(); ++i) {
+    steppers[i]->setMaxSpeed((int)((float)default_speed*multiplier));
+    steppers[i]->setAcceleration((int)((float)default_acceleration*multiplier));
+  }
+}
+
+void Robot::setMovingSpeedDefault(){
+  for (size_t i = 0; i < steppers.size(); ++i) {
+    steppers[i]->setMaxSpeed(default_speed);
+    steppers[i]->setAcceleration(default_acceleration);
+  }
+}
+
+vector<int> Robot::anglesToSteps(vector<double> angles){
+
+  vector<int> steps;
+
+  if(angles.size()<steppers.size()){
+    for (size_t i = 0; i < steppers.size(); ++i){
+      steps.push_back(0);
     }
-    else if(stage==1)
-    {
-      getStepper(1)->run();
-      getStepper(2)->run();
-      getStepper(3)->run();
-      if(getStepper(1)->distanceToGo()==0 && getStepper(2)->distanceToGo()==0 && getStepper(3)->distanceToGo()==0)
-      {
-        getStepper(1)->moveTo(-1000);
-        getStepper(3)->moveTo(2600); 
-        getStepper(4)->moveTo(2000);
-        stage++;
-      }
+    return steps;
+  } 
+  
+  for (size_t i = 0; i < steppers.size(); ++i){
+    steps.push_back(joints[i]->AngleToSteps(angles[i]));
+  }
+  return steps;
+
+}
+
+void Robot::movePositionHome(){
+  this->movePositionAbsolut({0,0,0,0,0,0});
+}
+
+void Robot::movePositionAbsolut(vector<double> angles){
+  if(angles.size()>=steppers.size()){
+    this->calculateMaxSpeed(this->anglesToSteps(angles));
+    for (size_t i = 0; i < steppers.size(); ++i){
+      steppers[i]->moveTo(joints[i]->AngleToSteps(angles[i]));
     }
-    else if(stage==2)
-    {
-      getStepper(1)->run();
-      getStepper(3)->run();
-      getStepper(4)->run();
-      if(getStepper(1)->distanceToGo()==0 && getStepper(3)->distanceToGo()==0 && getStepper(4)->distanceToGo()==0)
-      {
-        getStepper(1)->moveTo(1000);
-        getStepper(3)->moveTo(1400); 
-        getStepper(4)->moveTo(0);
-        stage++;
-      }
-    } 
-    else if(stage==3)
-    {
-      getStepper(1)->run();
-      getStepper(3)->run();
-      getStepper(4)->run();
-      if(getStepper(1)->distanceToGo()==0 && getStepper(3)->distanceToGo()==0 && getStepper(4)->distanceToGo()==0)
-      {
-        getStepper(1)->moveTo(0);
-        getStepper(2)->moveTo(0); 
-        getStepper(3)->moveTo(0); 
-        stage++;
-      }
-    } 
-    else if(stage==4)
-    {
-      getStepper(1)->run();
-      getStepper(2)->run();
-      getStepper(3)->run();
-      if(getStepper(1)->distanceToGo()==0 && getStepper(2)->distanceToGo()==0 && getStepper(3)->distanceToGo()==0)
-      {
-        stage++;
-      }
+  }
+}
+
+void Robot::movePositionIncremental(vector<double> angles){
+  if(angles.size()>=steppers.size()){
+    this->calculateMaxSpeed(this->anglesToSteps(angles));
+    for (size_t i = 0; i < steppers.size(); ++i){
+      steppers[i]->moveTo(steppers[i]->currentPosition()+joints[i]->AngleToSteps(angles[i]));
     }
-    else if(stage==5)
-    {
-      running=false;
-      stage=0;
+  }
+}
+ 
+bool Robot::distanceToGoZero(){
+  for (size_t i = 0; i < steppers.size(); ++i) {
+    if(steppers[i]->distanceToGo()!=0){
+      return false;
+    }
+  }
+  return true;
+}
+
+void Robot::run(){
+   for (size_t i = 0; i < steppers.size(); ++i){
+    steppers[i]->run();
+  }
+}
+
+bool Robot::runManual(){
+  this->run();
+  if(this->distanceToGoZero()){
+    running=false;  
+    return false;
+  }
+  else{
+    running=true;
+    return true;
+  }
+}
+
+int Robot::runPositionInput(String message){
+
+  int messageSize = message.length();
+  vector<double> angles;
+  for (size_t i = 0; i < steppers.size(); ++i){
+    angles.push_back(0);
+  }
+  int i=7;
+
+  while(messageSize>=i+3){
+    if(message[i]==';'){
+      i++;
+      break;
+    }
+
+    int sign = 1;
+    int digitStartIndex;
+    int stepperNum=-1;
+
+    if(isDigit(message[i])){
+      stepperNum = ((String)message[i]).toInt();
+      if(stepperNum>steppers.size() || stepperNum<=0){
+        return 0;
+      }
+      stepperNum--;
+      i++;
+    }
+    else{
+      //Serial.println("return 0 - no stepper number");
       return 0;
     }
-    return 1;
+
+    char action;
+    action = message[i];
+    if(action==' ' || isDigit(action)){
+      //Serial.println("return 0 - error in action option");
+      return 0;
+    }
+
+    i++;
+    if(message[i]=='m' && messageSize>i){
+      sign=-1;
+      i++;
+    }
+    else if(messageSize<=i){
+      //Serial.println("return 0 - no info about move angle");
+      return 0;
+    }
+
+    digitStartIndex=i;
+
+    int angle=0;
+
+    while(messageSize>=i){
+      if(isDigit(message[i])){
+        i++;
+      }
+      else{
+        angle = message.substring(digitStartIndex, i+1).toInt()*sign;
+        break;
+      }
+    }
+
+    switch (action)
+    {
+    case 'a':
+      angles[stepperNum]=angle;
+      break;
+
+    default:
+      break;
+    }
+    i=i+1;
+  }
+
+  if(i>7){
+    this->movePositionIncremental(angles);
+    return 2;
+  }
+  else{
+    //Serial.println("return 0 - no data");
+    return 0;
+  }
+
+}
+
+void Robot::calculateMaxSpeed(vector<int> steps){
+
+  if(steps.size()<steppers.size()) return;
+  int maxDistance = 0;
+
+  for (size_t i = 0; i < steppers.size(); ++i){
+    int distance = abs(steppers[i]->currentPosition()-steps[i]);
+    if (distance > maxDistance) {
+      maxDistance = distance;
+    }
+  }
+
+   for (size_t i = 0; i < steppers.size(); ++i){
+    steppers[i]->setAcceleration((int)(((double)(abs(steppers[i]->currentPosition()-steps[i]))/(double)maxDistance)*(double)default_acceleration));
+    steppers[i]->setMaxSpeed((int)(((double)(abs(steppers[i]->currentPosition()-steps[i]))/(double)maxDistance)*default_speed));
+  }
+
+}
+
+double Robot::calculateTime(vector<int> steps){
+
+  int maxDistance = 0;
+  double maxTime;
+
+  if(steps.size()<steppers.size()) return 0;
+
+  for (size_t i = 0; i < steppers.size(); ++i){
+    int distance = abs(steppers[i]->currentPosition()-steps[i]);
+    if (distance > maxDistance) {
+      maxDistance = distance;
+    }
+  }
+
+  double maxAccelDistance = (((double)default_speed)*((double)default_speed))/((double)default_acceleration*2.);
+
+  if(2*maxAccelDistance >= maxDistance){ // triangle speed plot
+    double timeAccel=sqrt((double)maxDistance/(double)default_acceleration);
+    maxTime=timeAccel*2;
+  }
+  else { // trapeze speed plot
+    double timeAccel=sqrt(maxAccelDistance/(double)default_acceleration);
+    double timeMaxSpeed=((double)maxDistance-2*maxAccelDistance)/(double)default_speed;
+    maxTime=timeAccel*2+timeMaxSpeed;
+  }
+  return maxTime;
+}
+
+int Robot::moveTestStages(){
+
+  switch (stage){
+  case 0:
+    movePositionAbsolut({90,30,120,180,90,180});
+    running=true;
+    stage++;
+    break;
+  case 1:
+    this->run();
+    if(this->distanceToGoZero())
+    {
+      movePositionIncremental({45, -45, 60, -135, -135, -360});
+      stage++;
+    }
+    break;
+  case 2:
+    this->run();
+    if(this->distanceToGoZero())
+    {
+      movePositionAbsolut({45, 60, 120, 45, 45, 90});
+      stage++;
+    }
+    break;  
+  case 3:
+    this->run();
+    if(this->distanceToGoZero())
+    {
+      movePositionHome();
+      stage++;
+    }
+    break;  
+  case 4:
+    this->run(); 
+    if(this->distanceToGoZero())
+    {
+      stage++;
+    }
+    break;
+  case 5:
+    running=false;
+    stage=0;
+    return 0;
+  }
+  return 1;
+
 }

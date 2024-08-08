@@ -11,8 +11,9 @@ private:
 
 public:
     Joint();
-    Joint(int, int);
-    Joint(int, int, double);
+    Joint(int, int, double, double);
+    Joint(double, double, double);
+    Joint(int, int, double, double, double);
     double Ratio();
     int AngleToSteps(double);
     int StepsOffset();
