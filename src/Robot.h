@@ -5,7 +5,9 @@
 #include "Offset.h"
 #include "GPIO.h"
 #include "EmergencyStop.h"
+#include "Kinematics.h"
 #include <AccelStepper.h>
+
 
 #define default_speed 4000
 #define default_acceleration 2000
@@ -18,15 +20,17 @@ private:
     vector<Joint*> joints;
     Offset offset;
     EmergencyStop stop;
+    Kinematics kinematics;
     bool running;
     bool enable;
     int stage;
     
 public:
-    Robot(vector<AccelStepper*>&, vector<Joint*>&);
+    Robot(vector<AccelStepper*>&, vector<Joint*>&, Kinematics);
     AccelStepper* getStepper(size_t) const;
     Offset& getOffset() {return offset;};
     EmergencyStop& getEmergencyStop() {return stop;};
+    Kinematics& getKinematics() {return kinematics;};
     bool isRunning() {return running;}
     bool isEnable() {return running;}
     bool isStop() {return stop.isStop();}
@@ -49,6 +53,7 @@ public:
     vector<int> anglesToSteps(vector<double>);
     vector<double> getOffsets(); 
     void setHome();
+    void goHome();
     
 };
 

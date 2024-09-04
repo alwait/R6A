@@ -1,10 +1,11 @@
 #include "Robot.h"
 
-Robot::Robot(std::vector<AccelStepper*>& Steppers, std::vector<Joint*>& Joints)
+Robot::Robot(std::vector<AccelStepper*>& Steppers, std::vector<Joint*>& Joints, Kinematics Kinematics)
     : steppers(Steppers), joints(Joints), offset(), stop(){
       running=false;
       enable=false;
       stage=0;
+      kinematics=Kinematics;
       for (size_t i = 0; i < steppers.size(); ++i) {
         steppers[i]->setMaxSpeed(default_speed);
         steppers[i]->setAcceleration(default_acceleration);
@@ -194,6 +195,7 @@ int Robot::runPositionInput(String message){
     if(isDigit(message[i])){
       stepperNum = ((String)message[i]).toInt();
       if(stepperNum>steppers.size() || stepperNum<=0){
+        //Serial.println("return 0 - incorrect stepper number");
         return 0;
       }
       stepperNum--;
@@ -206,7 +208,7 @@ int Robot::runPositionInput(String message){
 
     char action;
     action = message[i];
-    if(action==' ' || isDigit(action)){
+    if(action==' ' || action==NULL || isDigit(action)){
       //Serial.println("return 0 - error in action option");
       return 0;
     }
@@ -256,6 +258,14 @@ int Robot::runPositionInput(String message){
     return 0;
   }
 
+}
+
+void Robot::goHome(){
+  vector<double> angles;
+  for (size_t i = 0; i < steppers.size(); ++i){
+    angles.push_back(0);
+  }
+  this->movePositionAbsolut(angles);
 }
 
 void Robot::calculateMaxSpeed(vector<int> steps){
@@ -309,7 +319,9 @@ int Robot::moveTestStages(){
 
   switch (stage){
   case 0:
-    movePositionAbsolut({90,30,120,180,90,180});
+    //movePositionAbsolut({90,30,120,180,90,180});
+    movePositionAbsolut(this->getKinematics().inverseKinematics({179.63+100,0,184.88-50,0,0,90}));
+    ;
     running=true;
     stage++;
     break;
@@ -317,7 +329,8 @@ int Robot::moveTestStages(){
     this->run();
     if(this->distanceToGoZero())
     {
-      movePositionIncremental({45, -45, 60, -135, -135, -360});
+      //movePositionIncremental({45, -45, 60, -135, -135, -360});
+      movePositionAbsolut(this->getKinematics().inverseKinematics({179.63+100,100,184.88-50,0,0,90}));
       stage++;
     }
     break;
@@ -325,11 +338,39 @@ int Robot::moveTestStages(){
     this->run();
     if(this->distanceToGoZero())
     {
-      movePositionAbsolut({45, 60, 120, 45, 45, 90});
+      //movePositionAbsolut({45, 60, 120, 45, 45, 90});
+      movePositionAbsolut(this->getKinematics().inverseKinematics({179.63+100,0,184.88-130,0,0,90}));
       stage++;
     }
     break;  
-  case 3:
+   case 3:
+    this->run();
+    if(this->distanceToGoZero())
+    {
+      //movePositionAbsolut({45, 60, 120, 45, 45, 90});
+      movePositionAbsolut(this->getKinematics().inverseKinematics({179.63+100,-100,184.88-60,0,0,90}));
+      stage++;
+    }
+    break;  
+   case 4:
+    this->run();
+    if(this->distanceToGoZero())
+    {
+      //movePositionAbsolut({45, 60, 120, 45, 45, 90});
+      movePositionAbsolut(this->getKinematics().inverseKinematics({179.63-50,0,184.88+100,0,0,90}));
+      stage++;
+    }
+    break;  
+   case 5:
+    this->run();
+    if(this->distanceToGoZero())
+    {
+      //movePositionAbsolut({45, 60, 120, 45, 45, 90});
+      movePositionAbsolut(this->getKinematics().inverseKinematics({179.63-100,-100,184.88+100,0,0,90}));
+      stage++;
+    }
+    break;  
+  case 6:
     this->run();
     if(this->distanceToGoZero())
     {
@@ -337,14 +378,14 @@ int Robot::moveTestStages(){
       stage++;
     }
     break;  
-  case 4:
+  case 7:
     this->run(); 
     if(this->distanceToGoZero())
     {
       stage++;
     }
     break;
-  case 5:
+  case 8:
     running=false;
     stage=0;
     return 0;

@@ -1,6 +1,3 @@
-#ifndef JOINT_H
-#define JOINT_H
-
 #include "Joint.h"
 #include <cmath>
 
@@ -51,5 +48,3 @@ int Joint::AngleToSteps(double Angle){
 int Joint::StepsOffset(){
     return AngleToSteps(offsetAngle);
 }
-
-#endif // JOINT_H

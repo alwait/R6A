@@ -11,32 +11,34 @@ AccelStepper stepper1(AccelStepper::DRIVER, STEP_PIN_1, DIR_PIN_1);
 Joint joint1(20, 120, -180, 180);
 
 AccelStepper stepper2(AccelStepper::DRIVER, STEP_PIN_2, DIR_PIN_2);
-Joint joint2(20, 100, 35, -35, 90);
+Joint joint2(12, 100, 45, -45, 90);
 
 AccelStepper stepper3(AccelStepper::DRIVER, STEP_PIN_3, DIR_PIN_3);
 Joint joint3(20, 80, 65, -65, 180);
 
 AccelStepper stepper4(AccelStepper::DRIVER, STEP_PIN_4, DIR_PIN_4);
-Joint joint4(20, 60, -180, 180);
+Joint joint4(16, 60, -180, 180);
 
 AccelStepper stepper5(AccelStepper::DRIVER, STEP_PIN_5, DIR_PIN_5);
-Joint joint5(16, 40, -30, -90, 90);
+Joint joint5(16, 40, -20, -90, 90);
 
 AccelStepper stepper6(AccelStepper::DRIVER, STEP_PIN_6, DIR_PIN_6);
-Joint joint6(90, -180, 180);
+Joint joint6(0, -180, 180);
 
 std::vector<AccelStepper*> steppers = {&stepper1, &stepper2, &stepper3, &stepper4, &stepper5, &stepper6};
 std::vector<Joint*> joints = {&joint1, &joint2, &joint3, &joint4, &joint5, &joint6};
 
 Offset offset;
 
-Robot r6a(steppers, joints);
+Kinematics kinematics(30.753,160,150.94,9.486);
+
+Robot r6a(steppers, joints, kinematics);
 
 #if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
 #error Bluetooth is not enabled! Please run `make menuconfig` to and enable it
 #endif
 
-enum Option{standbyMode, testMode, manualMode};
+enum Option{standbyMode, testMode, manualMode, homeMode};
 
 BluetoothSerial SerialBT;
 SemaphoreHandle_t mutex;
@@ -63,7 +65,10 @@ void setup() {
   mutex = xSemaphoreCreateMutex();
 
   Serial.println("Robot started");
-
+  //Serial.println(r6a.getKinematics().printInverseK({179.63-20,80,184.88-40,0,0,0}));
+  Serial.println(r6a.getKinematics().printInverseK({179.63,0,184.88,0,0,0}));
+  //Serial.println(r6a.getKinematics().printInverseK({179.63,0,184.88,0,0,0}));
+  //Serial.println(r6a.getKinematics().printInverseK({179.63,0,184.88,0,0,0}));
 }
 
 void loop()
@@ -115,10 +120,15 @@ void loop()
       r6a.getEmergencyStop().setReturnChange(true);
       message = "";
     }
-    else if (message =="disable" && r6a.isStop()){
+    else if (message =="disable" && r6a.isStop() && !r6a.isRunning()){
       message = "";
     }
-    else if (message.substring(0, 6)=="manual" && message.endsWith(";")){
+    else if (message =="home" && !r6a.isStop() && !r6a.isRunning()){
+      r6a.goHome();
+      option=homeMode;
+      message = "";
+    }
+    else if (message.substring(0, 6)=="manual" && message.endsWith(";") && !r6a.isRunning()){
       option=r6a.runPositionInput(message);
       message = "";
     }
@@ -162,6 +172,11 @@ void loop()
           option=r6a.moveTestStages(); // Moving stages example
         }
         else if(option==manualMode){
+          if(!r6a.runManual()){
+            option=standbyMode;
+          }
+        }
+        else if(option==homeMode){
           if(!r6a.runManual()){
             option=standbyMode;
           }

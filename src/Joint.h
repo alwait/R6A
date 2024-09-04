@@ -1,3 +1,6 @@
+#ifndef JOINT_H
+#define JOINT_H
+
 #define microsteps_default 8
 
 class Joint{
@@ -19,3 +22,5 @@ public:
     int StepsOffset();
     
 };
+
+#endif 
