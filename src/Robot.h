@@ -6,7 +6,10 @@
 #include "GPIO.h"
 #include "EmergencyStop.h"
 #include "Kinematics.h"
+#include "Move.h"
 #include <AccelStepper.h>
+#include "Arduino.h"
+#include "Steering.h"
 
 
 #define default_speed 4000
@@ -21,6 +24,8 @@ private:
     Offset offset;
     EmergencyStop stop;
     Kinematics kinematics;
+    Move move;
+    Steering steering;
     bool running;
     bool enable;
     int stage;
@@ -31,12 +36,15 @@ public:
     Offset& getOffset() {return offset;};
     EmergencyStop& getEmergencyStop() {return stop;};
     Kinematics& getKinematics() {return kinematics;};
+    Move& getMove() {return move;};
+    Steering& getSteering() {return steering;};
     bool isRunning() {return running;}
     bool isEnable() {return running;}
     bool isStop() {return stop.isStop();}
     void moveOffset();
     void emergencyStop();
     void emergencyRelease();
+    void moveSteering();
     int moveTestStages();
     void setMovingSpeed(float);
     void setMovingSpeedDefault();
@@ -51,9 +59,12 @@ public:
     double calculateTime(vector<int>);
     void calculateMaxSpeed(vector<int>);
     vector<int> anglesToSteps(vector<double>);
+    vector<double> stepsToAngle(vector<int>);
     vector<double> getOffsets(); 
+    vector<double> currentAngles();
     void setHome();
     void goHome();
+    bool isHome();
     
 };
 

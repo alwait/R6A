@@ -1,7 +1,7 @@
 #include "Robot.h"
 
 Robot::Robot(std::vector<AccelStepper*>& Steppers, std::vector<Joint*>& Joints, Kinematics Kinematics)
-    : steppers(Steppers), joints(Joints), offset(), stop(){
+    : steppers(Steppers), joints(Joints), offset(), stop(), move(Steppers,Joints), steering(){
       running=false;
       enable=false;
       stage=0;
@@ -54,41 +54,53 @@ vector<double> Robot::getOffsets(){
 }
 
 void Robot::emergencyStop(){
-    stop.emergencyChange(steppers);
+  stop.emergencyChange(steppers);
 
-    RunningState state=stop.emergencyMove(steppers);
+  RunningState state=stop.emergencyMove(steppers);
 
-    if(state==Stop){
-      running=false;
-      this->setMovingSpeedDefault();
-    }
-    else if(state==Running)
-    {
-      running=true;
-    }
+  if(state==Stop){
+    running=false;
+    this->setMovingSpeedDefault();
+  }
+  else if(state==Running)
+  {
+    running=true;
+  }
+}
+
+void Robot::moveSteering(){
+  if(move.getChange() && !move.getChangeBlock()){ // first run
+    this->calculateMaxSpeed(this->anglesToSteps(this->getMove().getAngles()));
+  }
+  move.changeMain();
+
+  RunningState state=move.moveMain();
+
+  if(state==Stop) running=false;
+  else if(state==Running) running=true;
 }
 
 void Robot::emergencyRelease(){
-    stop.returnChange(steppers);
+  stop.returnChange(steppers);
 
-    RunningState state=stop.returnMove(steppers);
+  RunningState state=stop.returnMove(steppers);
 
-    if(state==Stop){
-      offset.setOffsetChange(false);
-      offset.setOffsetChangeBlock(false);
-      running=false;
-      stage=0;
-      this->setMovingSpeedDefault();
-    }
-    else if(state==Running){
-      running=true;
-    }
+  if(state==Stop){
+    offset.setOffsetChange(false);
+    offset.setOffsetChangeBlock(false);
+    running=false;
+    stage=0;
+    this->setMovingSpeedDefault();
+  }
+  else if(state==Running){
+    running=true;
+  }
 
-    if(state==Stop && !offset.getOffsetSet())
-    {
-      digitalWrite(ENA_PIN,HIGH);
-      digitalWrite(LED_PIN,HIGH);
-    }
+  if(state==Stop && !offset.getOffsetSet())
+  {
+    digitalWrite(ENA_PIN,HIGH);
+    digitalWrite(LED_PIN,HIGH);
+  }
     
 }
 
@@ -104,6 +116,22 @@ void Robot::setMovingSpeedDefault(){
     steppers[i]->setMaxSpeed(default_speed);
     steppers[i]->setAcceleration(default_acceleration);
   }
+}
+
+vector<double> Robot::stepsToAngle(vector<int> steps){
+  vector<double> angles;
+
+  if(steps.size()<steppers.size()){
+    for (size_t i = 0; i < steppers.size(); ++i){
+      angles.push_back(0);
+    }
+    return angles;
+  } 
+  
+  for (size_t i = 0; i < steppers.size(); ++i){
+    angles.push_back(joints[i]->StepsToAngle(steps[i]));
+  }
+  return angles;
 }
 
 vector<int> Robot::anglesToSteps(vector<double> angles){
@@ -162,12 +190,12 @@ void Robot::run(){
 }
 
 bool Robot::runManual(){
-  this->run();
   if(this->distanceToGoZero()){
     running=false;  
     return false;
   }
   else{
+    this->run();
     running=true;
     return true;
   }
@@ -208,7 +236,7 @@ int Robot::runPositionInput(String message){
 
     char action;
     action = message[i];
-    if(action==' ' || action==NULL || isDigit(action)){
+    if(action==' ' || isDigit(action)){
       //Serial.println("return 0 - error in action option");
       return 0;
     }
@@ -250,7 +278,18 @@ int Robot::runPositionInput(String message){
   }
 
   if(i>7){
-    this->movePositionIncremental(angles);
+    vector<double> currentAngles=this->currentAngles();
+    if (angles.size() != currentAngles.size()) return 0;
+    for (size_t i = 0; i < steppers.size(); ++i) {
+      currentAngles[i] += angles[i];
+      Serial.print("angle ");
+      Serial.print(i);
+      Serial.print(" ");
+      Serial.println(currentAngles[i]);
+    }
+    this->getMove().setAngles(currentAngles);
+    
+    //this->movePositionIncremental(angles);
     return 2;
   }
   else{
@@ -258,6 +297,15 @@ int Robot::runPositionInput(String message){
     return 0;
   }
 
+}
+
+vector<double> Robot::currentAngles(){
+
+  vector<int> steps;
+  for (size_t i = 0; i < steppers.size(); ++i){ 
+    steps.push_back(steppers[i]->currentPosition());
+  }
+  return this->stepsToAngle(steps);
 }
 
 void Robot::goHome(){
@@ -285,6 +333,17 @@ void Robot::calculateMaxSpeed(vector<int> steps){
     steppers[i]->setMaxSpeed((int)(((double)(abs(steppers[i]->currentPosition()-steps[i]))/(double)maxDistance)*default_speed));
   }
 
+}
+
+bool Robot::isHome(){
+  bool home=true;
+  for (size_t i = 0; i < steppers.size(); ++i) 
+  {
+    if(steppers[i]->currentPosition()!=0){
+      home=false;
+    }
+  }
+  return home;
 }
 
 double Robot::calculateTime(vector<int> steps){
@@ -320,8 +379,7 @@ int Robot::moveTestStages(){
   switch (stage){
   case 0:
     //movePositionAbsolut({90,30,120,180,90,180});
-    movePositionAbsolut(this->getKinematics().inverseKinematics({179.63+100,0,184.88-50,0,0,90}));
-    ;
+    movePositionAbsolut(this->getKinematics().inverseKinematics({179.63+100,0,184.88-50,0,0,0}));
     running=true;
     stage++;
     break;
@@ -330,7 +388,7 @@ int Robot::moveTestStages(){
     if(this->distanceToGoZero())
     {
       //movePositionIncremental({45, -45, 60, -135, -135, -360});
-      movePositionAbsolut(this->getKinematics().inverseKinematics({179.63+100,100,184.88-50,0,0,90}));
+      movePositionAbsolut(this->getKinematics().inverseKinematics({179.63+100,100,184.88-50,0,0,0}));
       stage++;
     }
     break;
@@ -339,7 +397,7 @@ int Robot::moveTestStages(){
     if(this->distanceToGoZero())
     {
       //movePositionAbsolut({45, 60, 120, 45, 45, 90});
-      movePositionAbsolut(this->getKinematics().inverseKinematics({179.63+100,0,184.88-130,0,0,90}));
+      movePositionAbsolut(this->getKinematics().inverseKinematics({179.63+100,0,184.88-130,0,0,0}));
       stage++;
     }
     break;  
@@ -348,7 +406,7 @@ int Robot::moveTestStages(){
     if(this->distanceToGoZero())
     {
       //movePositionAbsolut({45, 60, 120, 45, 45, 90});
-      movePositionAbsolut(this->getKinematics().inverseKinematics({179.63+100,-100,184.88-60,0,0,90}));
+      movePositionAbsolut(this->getKinematics().inverseKinematics({179.63+100,-100,184.88-60,0,0,0}));
       stage++;
     }
     break;  
@@ -357,7 +415,7 @@ int Robot::moveTestStages(){
     if(this->distanceToGoZero())
     {
       //movePositionAbsolut({45, 60, 120, 45, 45, 90});
-      movePositionAbsolut(this->getKinematics().inverseKinematics({179.63-50,0,184.88+100,0,0,90}));
+      movePositionAbsolut(this->getKinematics().inverseKinematics({179.63-50,0,184.88+100,0,0,0}));
       stage++;
     }
     break;  
@@ -366,7 +424,7 @@ int Robot::moveTestStages(){
     if(this->distanceToGoZero())
     {
       //movePositionAbsolut({45, 60, 120, 45, 45, 90});
-      movePositionAbsolut(this->getKinematics().inverseKinematics({179.63-100,-100,184.88+100,0,0,90}));
+      movePositionAbsolut(this->getKinematics().inverseKinematics({179.63-100,-100,184.88+100,0,0,0}));
       stage++;
     }
     break;  

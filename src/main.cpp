@@ -5,7 +5,7 @@
 #include "Robot.h"
 #include "GPIO.h"
 
-#define default_bt_name "R6A Test Bluetooth Connection"
+#define default_bt_name "0R6A Test Bluetooth Connection"
 
 AccelStepper stepper1(AccelStepper::DRIVER, STEP_PIN_1, DIR_PIN_1);
 Joint joint1(20, 120, -180, 180);
@@ -40,6 +40,8 @@ Robot r6a(steppers, joints, kinematics);
 
 enum Option{standbyMode, testMode, manualMode, homeMode};
 
+SteeringMove SteeringMoveOption = SteeringMove();
+
 BluetoothSerial SerialBT;
 SemaphoreHandle_t mutex;
 String message = "";
@@ -67,7 +69,7 @@ void setup() {
   Serial.println("Robot started");
   //Serial.println(r6a.getKinematics().printInverseK({179.63-20,80,184.88-40,0,0,0}));
   Serial.println(r6a.getKinematics().printInverseK({179.63,0,184.88,0,0,0}));
-  //Serial.println(r6a.getKinematics().printInverseK({179.63,0,184.88,0,0,0}));
+  Serial.println(r6a.getKinematics().printInverseK({179.63,0,184.88,0,0,90}));
   //Serial.println(r6a.getKinematics().printInverseK({179.63,0,184.88,0,0,0}));
 }
 
@@ -99,11 +101,26 @@ void loop()
   // Bluetooth control
   if(message!=""){
     xSemaphoreTake(mutex, portMAX_DELAY);
+    // Conditions: {isStop, isRun, isOffset, isHome}
+    SteeringMoveOption=r6a.getSteering().handle(message,{r6a.isStop(), r6a.isRunning(), r6a.getOffset().getOffsetSet(), r6a.isHome()});
+    if(!SteeringMoveOption.getType().isTypeNone()){
+      //message="";
+      Serial.print("Option: ");
+      Serial.println(SteeringMoveOption.getSteeringOption());
+      if(SteeringMoveOption.getAngles()!=nullptr){
+        Serial.print("Axis: {");
+        for(size_t i=0; i<SteeringMoveOption.getAngles()->size(); i++){
+          Serial.print(SteeringMoveOption.getAngles()->at(i));
+          Serial.print(",");
+        }
+        Serial.println("}");
+      }
+    }
     if (message =="start" && r6a.getOffset().getOffsetSet() && !r6a.isRunning() && !r6a.isStop()){
       option=testMode;
       message = "";
     }
-    else if (message =="offset" && !r6a.isRunning() && !r6a.isStop()){
+    else if (message =="offset" && !r6a.isRunning() && !r6a.isStop() && r6a.isHome()){
       digitalWrite(ENA_PIN,LOW);
       digitalWrite(LED_PIN,LOW);
       r6a.getOffset().setOffsetChange(true);
@@ -120,21 +137,31 @@ void loop()
       r6a.getEmergencyStop().setReturnChange(true);
       message = "";
     }
-    else if (message =="disable" && r6a.isStop() && !r6a.isRunning()){
-      message = "";
-    }
     else if (message =="home" && !r6a.isStop() && !r6a.isRunning()){
       r6a.goHome();
       option=homeMode;
       message = "";
     }
-    else if (message.substring(0, 6)=="manual" && message.endsWith(";") && !r6a.isRunning()){
-      option=r6a.runPositionInput(message);
+    else if (message =="disable" && r6a.isStop() && !r6a.isRunning()){
+      message = "";
+    }
+    else if (message =="test" && !r6a.isRunning() && !r6a.isStop()){
+      r6a.getMove().setAngles({15,40,30,90,20,45});
+      r6a.getMove().setChange(true);
+      SerialBT.println("TEST");
+      message = "";
+    }
+    else if (message.substring(0, 6)=="manual" && message.endsWith(";") && !r6a.isRunning() && !r6a.isStop()){
+      if(r6a.runPositionInput(message)==2){
+        r6a.getMove().setChange(true);
+      }
+      //option=r6a.runPositionInput(message);
       message = "";
     }
     xSemaphoreGive(mutex);
   }
 
+  // LED emergency blinking
   if(r6a.isStop()){
     if(millis()-ledStopTimer>=ledStopInterval){
       bool state=digitalRead(LED_PIN);
@@ -159,6 +186,7 @@ void loop()
     // Safety features
     r6a.emergencyStop();  // Stop change if controlled
     r6a.emergencyRelease(); // Return if stopped and controlled
+    r6a.moveSteering();
    
     // Moving options
     if(!r6a.isStop()){ // Moves if not in stop mode
