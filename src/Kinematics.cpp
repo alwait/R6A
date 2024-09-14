@@ -33,7 +33,6 @@ vector<double> Kinematics::inverseKinematics(vector<double> position){
     double angle_a=atan2(position[1],position[0])*180/PI;
 
     angle_c=angle_c-90;
-    //angle_b=-angle_b;
 
     Matrix<matrix_size,matrix_size> R03=this->getR03({angle_a, angle_b, angle_c});
     bool isNonsingular = Invert(R03);
@@ -51,11 +50,10 @@ vector<double> Kinematics::inverseKinematics(vector<double> position){
     //if(!isMatrixValueOk(R36)) return angles;
 
     double angle_e=atan2(sqrt(1-pow(R36(2,2),2)),R36(2,2))*180/PI;
-    //double angle_e=acos(R36(2,2))*180/PI;
 
-    double angle_d=atan2(R36(1,2),R36(0,2))*180/PI;
+    double angle_d=atan2(R36(1,2),R36(0,2))*180/PI; 
 
-    double angle_f=atan2(R36(2,1),-R36(2,0))*180/PI;
+    double angle_f=atan2(R36(2,1),-R36(2,0))*180/PI; 
     
     angles.push_back(angle_a);
     angles.push_back(angle_b);
@@ -165,16 +163,17 @@ Matrix<matrix_size,matrix_size> Kinematics::rotZ(double rad){
 }
 
 double Kinematics::roundToOne(double element){
-    if(abs(element)<1.01 && abs(element)>1){
+    double tolerance=0.001;
+    if(abs(element)<1.0+tolerance && abs(element)>1){
         if (element - 1.0 > 0) {
             return 1.0;
         } else if (element + 1.0 < 0) {
             return -1.0;
         }
     }
-    else if(abs(element)<0.01){
-        return 0;
-    }
+    //else if(abs(element)<tolerance){
+    //    return 0;
+    //}
     else return 2;
 }
 
@@ -193,7 +192,6 @@ void Kinematics::roundMatrix(Matrix<matrix_size,matrix_size> &matrix){
 }
 
 bool Kinematics::isMatrixValueOk(Matrix<matrix_size,matrix_size> matrix){
-    double roundTry;
     for (size_t i = 0; i < matrix.Rows; ++i) 
     {
         for (size_t j = 0; j < matrix.Cols; ++j) 

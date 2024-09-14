@@ -19,8 +19,8 @@ void EmergencyStop::emergencyChange(const std::vector<AccelStepper*>& steppers){
     if(stopChange && !stopChangeBlock){
         for (size_t i = 0; i < steppers.size(); ++i) 
         {
-            steppers[i]->setAcceleration(2000);
-            steppers[i]->setMaxSpeed(400);
+            steppers[i]->setAcceleration(5*(int)steppers[i]->speed());
+            //steppers[i]->setMaxSpeed(10);
             steppers[i]->stop();
         }
         stopSet=true;
