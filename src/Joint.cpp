@@ -41,6 +41,10 @@ double Joint::Ratio(){
     return (double)jointGear/(double)motorGear;
 }
 
+double Joint::StepsToAngle(int Steps){
+    return (double)((double)Steps*1.8)/((double)microstepping*Ratio());
+}
+
 int Joint::AngleToSteps(double Angle){
     return (int)round((Angle*microstepping*Ratio())/1.8);
 }

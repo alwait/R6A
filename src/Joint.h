@@ -19,6 +19,7 @@ public:
     Joint(int, int, double, double, double);
     double Ratio();
     int AngleToSteps(double);
+    double StepsToAngle(int);
     int StepsOffset();
     
 };
