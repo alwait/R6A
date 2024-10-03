@@ -13,7 +13,8 @@ class Move : public Options{
 private:
     vector<AccelStepper*> steppers;
     vector<Joint*> joints;
-    vector<double> angles;
+    vector<float> angles;
+    float speed;
 public:
     Move(const vector<AccelStepper*>&, const vector<Joint*>&);    
     void change() override; 
@@ -21,8 +22,11 @@ public:
 
     void setSteppers(const vector<AccelStepper*>& Steppers) {steppers = Steppers;};
     void setJoints(const vector<Joint*>& Joints) {joints = Joints;};
-    void setAngles(vector<double> Angles) {angles = Angles;};
-    vector<double> getAngles(){return angles;}
+    void setAngles(vector<float> Angles) {angles = Angles;};
+    vector<float> getAngles(){return angles;}
+    bool isAnglesNan();
+    void setSpeedScaling(float scale){speed=scale;};
+    float getSpeedScaling(){return speed;};
 };
 
 #endif // MOVE

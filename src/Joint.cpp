@@ -10,7 +10,7 @@ Joint::Joint(){
     maxAngle=180;
 }
 
-Joint::Joint(int MotorGear, int JointGear, double MinAngle, double MaxAngle){
+Joint::Joint(int MotorGear, int JointGear, float MinAngle, float MaxAngle){
     motorGear=MotorGear;
     jointGear=JointGear;
     microstepping=microsteps_default;
@@ -19,7 +19,7 @@ Joint::Joint(int MotorGear, int JointGear, double MinAngle, double MaxAngle){
     maxAngle=MaxAngle;
 }
 
-Joint::Joint(double OffsetAngle, double MinAngle, double MaxAngle){
+Joint::Joint(float OffsetAngle, float MinAngle, float MaxAngle){
     motorGear=1;
     jointGear=1;
     microstepping=microsteps_default;
@@ -28,7 +28,7 @@ Joint::Joint(double OffsetAngle, double MinAngle, double MaxAngle){
     maxAngle=MaxAngle;
 }
 
-Joint::Joint(int MotorGear, int JointGear, double OffsetAngle, double MinAngle, double MaxAngle){
+Joint::Joint(int MotorGear, int JointGear, float OffsetAngle, float MinAngle, float MaxAngle){
     motorGear=MotorGear;
     jointGear=JointGear;
     microstepping=microsteps_default;
@@ -37,18 +37,26 @@ Joint::Joint(int MotorGear, int JointGear, double OffsetAngle, double MinAngle, 
     maxAngle=MaxAngle;
 }
 
-double Joint::Ratio(){
-    return (double)jointGear/(double)motorGear;
+float Joint::Ratio(){
+    return (float)jointGear/(float)motorGear;
 }
 
-double Joint::StepsToAngle(int Steps){
-    return (double)((double)Steps*1.8)/((double)microstepping*Ratio());
+float Joint::StepsToAngle(int Steps){
+    return (float)((float)Steps*1.8)/((float)microstepping*Ratio());
 }
 
-int Joint::AngleToSteps(double Angle){
+int Joint::AngleToSteps(float Angle){
     return (int)round((Angle*microstepping*Ratio())/1.8);
 }
 
 int Joint::StepsOffset(){
     return AngleToSteps(offsetAngle);
+}
+
+int Joint::getMinSteps(){
+    return AngleToSteps(minAngle);
+}
+
+int Joint::getMaxSteps(){
+    return AngleToSteps(maxAngle);
 }

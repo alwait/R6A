@@ -13,22 +13,27 @@ using namespace BLA;
 
 class Kinematics{
 private:
-    double K1_len;
-    double K2_len;
-    double K3_len;
-    double K3_ang;
+    float K1_len;
+    float K2_len;
+    float K3_len;
+    float K3_ang;
+    vector<float> homePosition;
 public:
     Kinematics();
-    Kinematics(double, double, double, double);
-    vector<double> inverseKinematics(vector<double>);
-    String printInverseK(vector<double>); 
-    Matrix<matrix_size,matrix_size> getR03(vector<double>);
-    Matrix<matrix_size,matrix_size> RPY(vector<double>);
-    Matrix<matrix_size,matrix_size> rotX(double);
-    Matrix<matrix_size,matrix_size> rotZ(double);
-    double roundToOne(double);
+    Kinematics(float, float, float, float);
+    vector<float> inverseKinematics(vector<float>);
+    vector<float> forwardKinematics(vector<float>);
+    String printInverseK(vector<float>); 
+    String printForwardK(vector<float>); 
+    Matrix<matrix_size,matrix_size> getR03(vector<float>);
+    Matrix<matrix_size,matrix_size> getR06(vector<float>);
+    Matrix<matrix_size,matrix_size> RPY(vector<float>);
+    Matrix<matrix_size,matrix_size> rotX(float);
+    Matrix<matrix_size,matrix_size> rotZ(float);
+    float roundToOne(float);
     void roundMatrix(Matrix<matrix_size,matrix_size>&);
     bool isMatrixValueOk(Matrix<matrix_size,matrix_size>);
+    vector<float> getHomePosition(){return homePosition;};
 };
 
 #endif 

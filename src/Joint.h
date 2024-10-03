@@ -8,20 +8,23 @@ private:
     int motorGear;
     int jointGear;
     int microstepping;
-    double offsetAngle;
-    double minAngle=0;
-    double maxAngle=0;
+    float offsetAngle;
+    float minAngle;
+    float maxAngle;
 
 public:
     Joint();
-    Joint(int, int, double, double);
-    Joint(double, double, double);
-    Joint(int, int, double, double, double);
-    double Ratio();
-    int AngleToSteps(double);
-    double StepsToAngle(int);
+    Joint(int, int, float, float);
+    Joint(float, float, float);
+    Joint(int, int, float, float, float);
+    float Ratio();
+    int AngleToSteps(float);
+    float StepsToAngle(int);
     int StepsOffset();
-    
+    float getMinAngle(){return minAngle;};
+    float getMaxAngle(){return maxAngle;};
+    int getMinSteps();
+    int getMaxSteps();
 };
 
 #endif 
