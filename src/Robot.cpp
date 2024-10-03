@@ -1,7 +1,7 @@
 #include "Robot.h"
 
 Robot::Robot(std::vector<AccelStepper*>& Steppers, std::vector<Joint*>& Joints, Kinematics Kinematics)
-    : steppers(Steppers), joints(Joints), offset(), stop(), move(Steppers,Joints), steering(){
+    : steppers(Steppers), joints(Joints), offset(), stop(), move(Steppers,Joints), steering(), memory(){
       running=false;
       enable=false;
       stage=0;
@@ -43,14 +43,31 @@ void Robot::moveOffset(){
   else if(state==Running) running=true;
 }
 
-vector<double> Robot::getOffsets(){
+vector<float> Robot::getOffsets(){
 
-  vector<double> steps;
+  vector<float> steps;
   
   for (size_t i = 0; i < steppers.size(); ++i){
     steps.push_back(joints[i]->StepsOffset());
   }
   return steps;
+}
+
+
+bool Robot::isAngleLimitOk(vector<int> steps){
+  for (size_t i = 0; i < STEPPERS_NUM; i++){
+    if(steps.at(i)>joints.at(i)->getMaxSteps() || steps.at(i)<joints.at(i)->getMinSteps())
+      return false;
+  }
+  return true;
+}
+
+bool Robot::isAngleLimitOk(vector<float> angles){
+  for (size_t i = 0; i < STEPPERS_NUM; i++){
+    if(angles.at(i)>joints.at(i)->getMaxAngle() || angles.at(i)<joints.at(i)->getMinAngle())
+      return false;
+  }
+    return true;
 }
 
 void Robot::emergencyStop(){
@@ -70,7 +87,7 @@ void Robot::emergencyStop(){
 
 void Robot::moveSteering(){
   if(move.getChange() && !move.getChangeBlock()){ // first run
-    this->calculateMaxSpeed(this->anglesToSteps(this->getMove().getAngles()));
+    this->calculateMaxSpeed(this->anglesToSteps(this->getMove().getAngles()), move.getSpeedScaling());
   }
   move.changeMain();
 
@@ -118,8 +135,18 @@ void Robot::setMovingSpeedDefault(){
   }
 }
 
-vector<double> Robot::stepsToAngle(vector<int> steps){
-  vector<double> angles;
+String Robot::getStringVector(vector<float> vector){
+  String output="{";
+  for (size_t i = 0; i < vector.size(); i++){
+    output+=vector.at(i);
+    if(i<vector.size()-1) output+=";";
+  }
+  output+="}";
+  return output;
+}
+
+vector<float> Robot::stepsToAngle(vector<int> steps){
+  vector<float> angles;
 
   if(steps.size()<steppers.size()){
     for (size_t i = 0; i < steppers.size(); ++i){
@@ -134,7 +161,7 @@ vector<double> Robot::stepsToAngle(vector<int> steps){
   return angles;
 }
 
-vector<int> Robot::anglesToSteps(vector<double> angles){
+vector<int> Robot::anglesToSteps(vector<float> angles){
 
   vector<int> steps;
 
@@ -156,7 +183,7 @@ void Robot::movePositionHome(){
   this->movePositionAbsolut({0,0,0,0,0,0});
 }
 
-void Robot::movePositionAbsolut(vector<double> angles){
+void Robot::movePositionAbsolut(vector<float> angles){
   if(angles.size()>=steppers.size()){
     this->calculateMaxSpeed(this->anglesToSteps(angles));
     for (size_t i = 0; i < steppers.size(); ++i){
@@ -165,7 +192,7 @@ void Robot::movePositionAbsolut(vector<double> angles){
   }
 }
 
-void Robot::movePositionIncremental(vector<double> angles){
+void Robot::movePositionIncremental(vector<float> angles){
   if(angles.size()>=steppers.size()){
     this->calculateMaxSpeed(this->anglesToSteps(angles));
     for (size_t i = 0; i < steppers.size(); ++i){
@@ -204,7 +231,7 @@ bool Robot::runManual(){
 int Robot::runPositionInput(String message){
 
   int messageSize = message.length();
-  vector<double> angles;
+  vector<float> angles;
   for (size_t i = 0; i < steppers.size(); ++i){
     angles.push_back(0);
   }
@@ -278,14 +305,10 @@ int Robot::runPositionInput(String message){
   }
 
   if(i>7){
-    vector<double> currentAngles=this->currentAngles();
+    vector<float> currentAngles=this->currentAngles();
     if (angles.size() != currentAngles.size()) return 0;
     for (size_t i = 0; i < steppers.size(); ++i) {
       currentAngles[i] += angles[i];
-      Serial.print("angle ");
-      Serial.print(i);
-      Serial.print(" ");
-      Serial.println(currentAngles[i]);
     }
     this->getMove().setAngles(currentAngles);
     
@@ -299,8 +322,7 @@ int Robot::runPositionInput(String message){
 
 }
 
-vector<double> Robot::currentAngles(){
-
+vector<float> Robot::currentAngles(){
   vector<int> steps;
   for (size_t i = 0; i < steppers.size(); ++i){ 
     steps.push_back(steppers[i]->currentPosition());
@@ -308,15 +330,112 @@ vector<double> Robot::currentAngles(){
   return this->stepsToAngle(steps);
 }
 
+vector<float> Robot::currentPosition(){
+  return this->getKinematics().forwardKinematics(this->currentAngles());
+}
+
+vector<float> Robot::currentPositionWork(){
+  vector<float> position=this->getKinematics().forwardKinematics(this->currentAngles());
+  vector<float> home=this->getHomePosition();
+  for (size_t i = 0; i < position.size(); i++){
+    position[i]-=home[i];
+  }
+    
+  return position;
+}
+
+vector<float> Robot::setAngles(const std::vector<float>* Angles){
+  vector<float> result = this->currentAngles(); 
+  if (Angles != nullptr) {
+    if (result.size() == Angles->size()) {
+      for (size_t i = 0; i < result.size(); ++i) {
+        if(!isnan((*Angles)[i]))
+          result[i] = (*Angles)[i];
+      }
+    } 
+    else {
+      return result;
+    }
+  }
+  return result;
+}
+
+vector<float> Robot::addAngles(const std::vector<float>* Angles){
+  vector<float> result = this->currentAngles(); 
+  if (Angles != nullptr) {
+    if (result.size() == Angles->size()) {
+      for (size_t i = 0; i < result.size(); ++i) {
+        if(!isnan((*Angles)[i]))
+          result[i] += (*Angles)[i];
+      }
+    } 
+    else {
+      return result;
+    }
+  }
+  return result;
+}
+
+vector<float> Robot::setPositions(const std::vector<float>* Positions){
+  vector<float> result = this->currentPosition(); 
+  vector<float> home = this->getHomePosition(); 
+
+  if (Positions != nullptr){
+    if (result.size() == Positions->size()){
+      for (size_t i = 0; i < result.size(); ++i){
+        if(!isnan((*Positions)[i])){
+          result[i] = (*Positions)[i];
+          result[i] += home[i];
+        }
+      }
+    } 
+    else {
+      return result;
+    }
+  }
+  return result;
+}
+
+vector<float> Robot::addPositions(const std::vector<float>* Positions){
+  vector<float> result = this->currentPosition(); 
+  if (Positions != nullptr) {
+    if (result.size() == Positions->size()) {
+      for (size_t i = 0; i < result.size(); ++i) {
+        if(!isnan((*Positions)[i]))
+          result[i] += (*Positions)[i];
+      }
+    } 
+    else {
+      return result;
+    }
+  }
+  return result;
+}
+
+vector<float> Robot::returnPointerValues(const std::vector<float>* Values){
+  vector<float> result; 
+  if (Values != nullptr) {
+    if (Values->size() == STEPPERS_NUM) {
+      for (size_t i = 0; i < Values->size(); ++i) {
+        result.push_back((*Values)[i]);
+      }
+    } 
+    else {
+      return vector<float>(STEPPERS_NUM,0.0);
+    }
+  }
+  return vector<float>(STEPPERS_NUM,0.0);
+}
+
 void Robot::goHome(){
-  vector<double> angles;
+  vector<float> angles;
   for (size_t i = 0; i < steppers.size(); ++i){
     angles.push_back(0);
   }
   this->movePositionAbsolut(angles);
 }
 
-void Robot::calculateMaxSpeed(vector<int> steps){
+void Robot::calculateMaxSpeed(vector<int> steps, float scaling){
 
   if(steps.size()<steppers.size()) return;
   int maxDistance = 0;
@@ -329,8 +448,8 @@ void Robot::calculateMaxSpeed(vector<int> steps){
   }
 
    for (size_t i = 0; i < steppers.size(); ++i){
-    steppers[i]->setAcceleration((int)(((double)(abs(steppers[i]->currentPosition()-steps[i]))/(double)maxDistance)*(double)default_acceleration));
-    steppers[i]->setMaxSpeed((int)(((double)(abs(steppers[i]->currentPosition()-steps[i]))/(double)maxDistance)*default_speed));
+    steppers[i]->setAcceleration((int)(((float)(abs(steppers[i]->currentPosition()-steps[i]))/(float)maxDistance)*(float)default_acceleration*scaling));
+    steppers[i]->setMaxSpeed((int)(((float)(abs(steppers[i]->currentPosition()-steps[i]))/(float)maxDistance)*default_speed*scaling));
   }
 
 }
@@ -346,10 +465,10 @@ bool Robot::isHome(){
   return home;
 }
 
-double Robot::calculateTime(vector<int> steps){
+float Robot::calculateTime(vector<int> steps){
 
   int maxDistance = 0;
-  double maxTime;
+  float maxTime;
 
   if(steps.size()<steppers.size()) return 0;
 
@@ -360,18 +479,40 @@ double Robot::calculateTime(vector<int> steps){
     }
   }
 
-  double maxAccelDistance = (((double)default_speed)*((double)default_speed))/((double)default_acceleration*2.);
+  float maxAccelDistance = (((float)default_speed)*((float)default_speed))/((float)default_acceleration*2.);
 
   if(2*maxAccelDistance >= maxDistance){ // triangle speed plot
-    double timeAccel=sqrt((double)maxDistance/(double)default_acceleration);
+    float timeAccel=sqrt((float)maxDistance/(float)default_acceleration);
     maxTime=timeAccel*2;
   }
   else { // trapeze speed plot
-    double timeAccel=sqrt(maxAccelDistance/(double)default_acceleration);
-    double timeMaxSpeed=((double)maxDistance-2*maxAccelDistance)/(double)default_speed;
+    float timeAccel=sqrt(maxAccelDistance/(float)default_acceleration);
+    float timeMaxSpeed=((float)maxDistance-2*maxAccelDistance)/(float)default_speed;
     maxTime=timeAccel*2+timeMaxSpeed;
   }
   return maxTime;
+}
+
+String Robot::getStringCurrentPosition(){
+  vector<float> positionVector=this->currentPositionWork();
+  String positionString="Position {";
+  for (size_t i = 0; i < positionVector.size(); i++){
+    positionString+=positionVector.at(i);
+    if(i<positionVector.size()-1) positionString+=";";
+  }
+  positionString+="}";
+  return positionString;
+}
+
+String Robot::getStringCurrentAngles(){
+  vector<float> anglesVector=this->currentAngles();
+  String positionString="Axis {";
+  for (size_t i = 0; i < anglesVector.size(); i++){
+    positionString+=anglesVector.at(i);
+    if(i<anglesVector.size()-1) positionString+=";";
+  }
+  positionString+="}";
+  return positionString;
 }
 
 int Robot::moveTestStages(){

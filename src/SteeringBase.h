@@ -15,7 +15,11 @@ enum SteeringOption {
     home,
     disable,
     test,
-    control
+    control,
+    readpos,
+    memread,
+    memsave,
+    memsetgo,
 };
 
 enum Condition {
@@ -47,6 +51,7 @@ public:
     SteeringType(SteeringOption, int);
     SteeringOption& getOptionNumber() {return optionNumber;};
     int& getSubOptionNumber() {return subOptionNumber;};
+    void setSubOptionNumber(int sub) {subOptionNumber=sub;};
     SteeringType& getSteeringType() {return *this;};
     bool isTypeNone();
 };

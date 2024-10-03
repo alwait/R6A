@@ -10,6 +10,7 @@
 #include <AccelStepper.h>
 #include "Arduino.h"
 #include "Steering.h"
+#include "Memory.h"
 
 
 #define default_speed 4000
@@ -26,6 +27,7 @@ private:
     Kinematics kinematics;
     Move move;
     Steering steering;
+    Memory memory;
     bool running;
     bool enable;
     int stage;
@@ -38,6 +40,8 @@ public:
     Kinematics& getKinematics() {return kinematics;};
     Move& getMove() {return move;};
     Steering& getSteering() {return steering;};
+    Memory& getMemory() {return memory;};
+    vector<float> getHomePosition() {return kinematics.getHomePosition();};
     bool isRunning() {return running;}
     bool isEnable() {return running;}
     bool isStop() {return stop.isStop();}
@@ -49,23 +53,35 @@ public:
     void setMovingSpeed(float);
     void setMovingSpeedDefault();
     void disableRobot();
-    void movePositionAbsolut(vector<double>);
+    void movePositionAbsolut(vector<float>);
     void movePositionHome();
-    void movePositionIncremental(vector<double>);
+    void movePositionIncremental(vector<float>);
     bool distanceToGoZero();
     int runPositionInput(String);
     bool runManual();
     void run();
-    double calculateTime(vector<int>);
-    void calculateMaxSpeed(vector<int>);
-    vector<int> anglesToSteps(vector<double>);
-    vector<double> stepsToAngle(vector<int>);
-    vector<double> getOffsets(); 
-    vector<double> currentAngles();
+    float calculateTime(vector<int>);
+    void calculateMaxSpeed(vector<int>, float scaling=1);
+    vector<int> anglesToSteps(vector<float>);
+    vector<float> stepsToAngle(vector<int>);
+    vector<float> getOffsets(); 
+    vector<float> currentAngles();
+    vector<float> currentPosition();
+    vector<float> currentPositionWork();
+    String getStringCurrentPosition();
+    String getStringCurrentAngles();
+    String getStringVector(vector<float>);
     void setHome();
     void goHome();
     bool isHome();
-    
+    vector<float> setAngles(const std::vector<float>*);
+    vector<float> setPositions(const std::vector<float>*);
+    vector<float> addAngles(const std::vector<float>*);
+    vector<float> addPositions(const std::vector<float>*);
+    vector<float> returnPointerValues(const std::vector<float>*);
+    bool isAngleLimitOk(vector<int>);
+    bool isAngleLimitOk(vector<float>);
+    void memoryInit(){memory.mount();};
 };
 
 #endif

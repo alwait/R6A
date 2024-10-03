@@ -8,12 +8,12 @@ SteeringElement::SteeringElement(SteeringOption OptionNumber, vector<String> Opt
 
 SteeringType::SteeringType(){
     optionNumber=none;
-    subOptionNumber=0;
+    subOptionNumber=-1;
 }
 
 SteeringType::SteeringType(SteeringOption OptionNumber){
     optionNumber=OptionNumber;
-    subOptionNumber=0;
+    subOptionNumber=-1;
 } 
 
 SteeringType::SteeringType(SteeringOption OptionNumber, int SubOptionNumber){
