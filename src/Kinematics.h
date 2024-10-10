@@ -18,6 +18,7 @@ private:
     float K3_len;
     float K3_ang;
     vector<float> homePosition;
+    Matrix<matrix_size> toolOffset;
 public:
     Kinematics();
     Kinematics(float, float, float, float);

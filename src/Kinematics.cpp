@@ -15,11 +15,19 @@ Kinematics::Kinematics(float k1_l, float k2_l, float k3_l, float k3_a){
     K3_len=k3_l;
     K3_ang=k3_a;
     homePosition=forwardKinematics({0,0,0,0,0,0});
+    toolOffset={90,0,0};
 }
 
 vector<float> Kinematics::inverseKinematics(vector<float> position){
     vector<float> angles;
 
+    Matrix<matrix_size,matrix_size> RPY=this->RPY({position[3], position[4], position[5]});
+    Matrix<matrix_size> toolRotationOffset=RPY*toolOffset;
+    for (size_t i = 0; i < 3; i++){ // TODO POS + AXIS PROBLEM?
+        position[i]+=toolOffset(i);
+        position[i]-=toolRotationOffset(i);
+    }
+    
     float sqrtpos_xy=sqrt(pow(position[0],2)+pow(position[1],2));
     
     float w2=pow(position[2],2)+pow(sqrtpos_xy-K1_len,2);
@@ -36,15 +44,13 @@ vector<float> Kinematics::inverseKinematics(vector<float> position){
     Matrix<matrix_size,matrix_size> R03=this->getR03({angle_a, angle_b, angle_c});
     bool isNonsingular = Invert(R03);
         if(!isNonsingular) return vector<float>();
-    Matrix<matrix_size,matrix_size> RPY=this->RPY({position[3], position[4], position[5]});
+    
     float deg=PI/2;
     Matrix<matrix_size,matrix_size> corr=rotX(deg)*rotZ(deg)*rotX(deg);
     Matrix<matrix_size,matrix_size> R36= R03*RPY; 
 
     R36*=corr;
     roundMatrix(R36);
-
-    //Serial.println(R36);
 
     //if(!isMatrixValueOk(R36)) return angles;
 
@@ -95,10 +101,18 @@ vector<float> Kinematics::forwardKinematics(vector<float> angles){
     Matrix<matrix_size,matrix_size> corr=rotX(deg)*rotZ(deg)*rotX(deg);
     R06*=corr;
 
+    Matrix<matrix_size> tool=R06*toolOffset;
+    for (size_t i = 0; i < 3; i++){
+        pos[i]-=toolOffset(i);
+        pos[i]+=tool(i);
+    }
+    Serial.println(tool);
+
     float roll=atan2(R06(2,1),R06(2,2))*180/PI;
     float pitch=asin(-R06(2,0))*180/PI;
     float yaw=atan2(R06(1,0),R06(0,0))*180/PI;
 
+    
     pos.push_back(yaw);
     pos.push_back(pitch);
     pos.push_back(roll);
