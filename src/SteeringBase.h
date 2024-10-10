@@ -20,6 +20,11 @@ enum SteeringOption {
     memread,
     memsave,
     memsetgo,
+    memstageinit,
+    memstageread,
+    memstageload,
+    memstagereadloaded,
+    memstageloop
 };
 
 enum Condition {
