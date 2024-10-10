@@ -14,13 +14,13 @@ AccelStepper stepper2(AccelStepper::DRIVER, STEP_PIN_2, DIR_PIN_2);
 Joint joint2(20, 100, 45, -45, 90);
 
 AccelStepper stepper3(AccelStepper::DRIVER, STEP_PIN_3, DIR_PIN_3);
-Joint joint3(20, 80, 65, -65, 180);
+Joint joint3(20, 80, 65, -55, 195);
 
 AccelStepper stepper4(AccelStepper::DRIVER, STEP_PIN_4, DIR_PIN_4);
 Joint joint4(16, 60, -180, 180);
 
 AccelStepper stepper5(AccelStepper::DRIVER, STEP_PIN_5, DIR_PIN_5);
-Joint joint5(12, 40, -20, -90, 90);
+Joint joint5(12, 40, -20, -105, 105);
 
 AccelStepper stepper6(AccelStepper::DRIVER, STEP_PIN_6, DIR_PIN_6);
 Joint joint6(0, -180, 180);
@@ -38,13 +38,6 @@ Robot r6a(steppers, joints, kinematics);
 #error Bluetooth is not enabled! Please run `make menuconfig` to and enable it
 #endif
 
-enum Option{
-  standbyMode,
-  testMode,
-  manualMode,
-  homeMode
-};
-
 SteeringMove SteeringMoveOption = SteeringMove();
 
 BluetoothSerial SerialBT;
@@ -53,7 +46,7 @@ String message = "";
 bool messageEnd = false;
 char incomingChar;
 
-vector<float> movePosition, homePosition={179.63, 0, 184.88, 0, 0, 0};
+vector<float> movePosition, homePosition={179.63, 0, 184.88, 0, 0, 0}, homePosition2={179.63+20, 0, 184.88, 0, 0, 0} , homePosition3={179.63+100, 0, 184.88, 0, 0, 0};
 
 bool returnChange = false;
 int option = standbyMode;
@@ -73,21 +66,26 @@ void setup(){
 
   SerialBT.begin(default_bt_name);
   mutex = xSemaphoreCreateMutex();
-
+  Serial.println("Serial begin");
   Serial.println("Robot started");
   // Calculations test forward/inverse kinematics
-  Serial.println("HOME F/I-----------------");
+  Serial.println("HOME FORWARD/INVERSE-----");
   Serial.println(r6a.getKinematics().printInverseK(homePosition));
-  Serial.println(r6a.getKinematics().printForwardK(vector<float>(NUM_OF_AXIS,0.0)));
-  Serial.println("FORWARD------------------");
-  Serial.println(r6a.getKinematics().printForwardK({0,30,30,0,0,0}));
-  Serial.println(r6a.getKinematics().printForwardK({10,30,30,0,0,0}));
-  Serial.println("INVERSE------------------");
-  Serial.println(r6a.getKinematics().printInverseK({259.63,0.,163.44,0.,0.,0.}));
-  Serial.println(r6a.getKinematics().printInverseK({255.68,45.08,163.44,10.,0.,0.}));
+  Serial.println(r6a.getKinematics().printForwardK(r6a.getKinematics().inverseKinematics(homePosition)));
+  Serial.println("HOME+(X20) FORWARD/INVERSE-----");
+  Serial.println(r6a.getKinematics().printInverseK(homePosition2));
+  Serial.println(r6a.getKinematics().printForwardK(r6a.getKinematics().inverseKinematics(homePosition2)));
+  Serial.println("HOME+(X100) FORWARD/INVERSE-----");
+  Serial.println(r6a.getKinematics().printInverseK(homePosition3));
+  Serial.println(r6a.getKinematics().printForwardK(r6a.getKinematics().inverseKinematics(homePosition3)));
+  //Serial.println("FORWARD------------------");
+  //Serial.println(r6a.getKinematics().printForwardK({0,30,30,0,0,0}));
+  //Serial.println(r6a.getKinematics().printForwardK({10,30,30,0,0,0}));
+  //Serial.println("INVERSE------------------");
+  //Serial.println(r6a.getKinematics().printInverseK({259.63,0.,163.44,0.,0.,0.}));
+  //Serial.println(r6a.getKinematics().printInverseK({255.68,45.08,163.44,10.,0.,0.}));
 
   r6a.memoryInit();
-  
 }
 
 void loop(){
@@ -140,7 +138,7 @@ void loop(){
 
   switch (SteeringMoveOption.getSteeringOption()){
   case start:
-    // Run programmed stages
+    option = stageMode;
     break;
 
   case offsetpos:
@@ -219,16 +217,36 @@ void loop(){
     break;
 
   case memread:
-    SerialBT.println(r6a.getStringVector(r6a.getMemory().readVector(SteeringMoveOption.getSteeringSubOption())));
+    SerialBT.println(r6a.getStringVector(r6a.getMemory().readVector(FILE_NAME, NUM_OF_AXIS ,SteeringMoveOption.getSteeringSubOption())));
     break;
 
   case memsave:
-    r6a.getMemory().writeVector(SteeringMoveOption.getSteeringSubOption(),r6a.currentAngles());
+    r6a.getMemory().writeVector(FILE_NAME, NUM_OF_AXIS ,SteeringMoveOption.getSteeringSubOption(),r6a.currentAngles());
     break;
 
   case memsetgo:
-    r6a.getMove().setAngles(r6a.getMemory().readVector(SteeringMoveOption.getSteeringSubOption()));
+    r6a.getMove().setAngles(r6a.getMemory().readVector(FILE_NAME, NUM_OF_AXIS ,SteeringMoveOption.getSteeringSubOption()));
     r6a.getMove().setChange(true);
+    break;
+
+  case memstageinit:
+    SerialBT.println(r6a.getStringVector(r6a.getAngles(SteeringMoveOption.getValues())));
+    break;
+
+  case memstageread:
+    SerialBT.println(r6a.getStringVector(r6a.getMemory().readVector(FILE_NAME_2, STAGES_SIZE ,SteeringMoveOption.getSteeringSubOption())));
+    break;
+
+  case memstageload:
+    // TODO loading stages to robot.StageMovement
+    break;
+
+  case memstagereadloaded:
+    // TODO reading memory number from robot.StageMovement
+    break;
+
+  case memstageloop:
+    // TODO setting loop stages in robot.StageMovement
     break;
 
   default:
@@ -261,19 +279,25 @@ void loop(){
   }
 
   // Motor running loop
-  if (digitalRead(ENA_PIN) == LOW) // Steering movement
+  if (digitalRead(ENA_PIN) == LOW) // Steering movement if motors control enabled
   {
     r6a.emergencyStop();    // Stop change if controlled
     r6a.emergencyRelease(); // Return if stopped and controlled
-    r6a.moveSteering();     // Serial steering
-    r6a.moveOffset();       // Offset change if controlled
 
-    if (option == testMode){
-      option = r6a.moveTestStages(); // Moving stages example
-    }
-    else if(option==homeMode){
-      if(!r6a.runManual()){
-        option=standbyMode;
+    if(!r6a.isStop()){
+      r6a.moveSteering();     // Serial steering
+      r6a.moveOffset();       // Offset change if controlled
+
+      if (option == stageMode){
+        option = standbyMode; // TODO stagemode 
+      }
+      if (option == testMode){
+        option = r6a.moveTestStages(); // Moving stages example
+      }
+      else if(option==homeMode){
+        if(!r6a.runManual()){
+          option=standbyMode;
+        }
       }
     }
   }

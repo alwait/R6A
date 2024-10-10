@@ -11,12 +11,21 @@
 #include "Arduino.h"
 #include "Steering.h"
 #include "Memory.h"
+#include "StageMovement.h"
 
 
 #define default_speed 4000
 #define default_acceleration 2000
 
 using namespace std;
+
+enum Option{
+  standbyMode,
+  testMode,
+  manualMode,
+  homeMode,
+  stageMode
+};
 
 class Robot{
 private:
@@ -28,6 +37,7 @@ private:
     Move move;
     Steering steering;
     Memory memory;
+    StageMovement stageMovement;
     bool running;
     bool enable;
     int stage;
@@ -41,6 +51,7 @@ public:
     Move& getMove() {return move;};
     Steering& getSteering() {return steering;};
     Memory& getMemory() {return memory;};
+    StageMovement& getStageMovement() {return stageMovement;};
     vector<float> getHomePosition() {return kinematics.getHomePosition();};
     bool isRunning() {return running;}
     bool isEnable() {return running;}
@@ -74,6 +85,7 @@ public:
     void setHome();
     void goHome();
     bool isHome();
+    vector<float> getAngles(const std::vector<float>*);
     vector<float> setAngles(const std::vector<float>*);
     vector<float> setPositions(const std::vector<float>*);
     vector<float> addAngles(const std::vector<float>*);
@@ -82,6 +94,7 @@ public:
     bool isAngleLimitOk(vector<int>);
     bool isAngleLimitOk(vector<float>);
     void memoryInit(){memory.mount();};
+    int handleStages(bool);
 };
 
 #endif

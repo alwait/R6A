@@ -1,7 +1,7 @@
 #include "Robot.h"
 
 Robot::Robot(std::vector<AccelStepper*>& Steppers, std::vector<Joint*>& Joints, Kinematics Kinematics)
-    : steppers(Steppers), joints(Joints), offset(), stop(), move(Steppers,Joints), steering(), memory(){
+    : steppers(Steppers), joints(Joints), offset(), stop(), move(Steppers,Joints), steering(), memory(), stageMovement(){
       running=false;
       enable=false;
       stage=0;
@@ -322,6 +322,13 @@ int Robot::runPositionInput(String message){
 
 }
 
+int Robot::handleStages(bool looping){
+  if(looping)
+  return stageMode;
+  else 
+  return standbyMode;
+}
+
 vector<float> Robot::currentAngles(){
   vector<int> steps;
   for (size_t i = 0; i < steppers.size(); ++i){ 
@@ -342,6 +349,16 @@ vector<float> Robot::currentPositionWork(){
   }
     
   return position;
+}
+
+vector<float> Robot::getAngles(const std::vector<float>* Angles){
+  vector<float> result(Angles->size(),-1); 
+  if (Angles != nullptr) {
+      for (size_t i = 0; i < Angles->size(); ++i) {
+          result[i] = (*Angles)[i];
+      }
+  }
+  return result;
 }
 
 vector<float> Robot::setAngles(const std::vector<float>* Angles){

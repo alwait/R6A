@@ -2,6 +2,7 @@
 #define OPTIONS_H
 
 #include "RunningState.h"
+#include "vector"
 
 using namespace std;
 
