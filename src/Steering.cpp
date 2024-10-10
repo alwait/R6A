@@ -32,6 +32,11 @@ Steering::Steering(){
         {memread,{"memread"},{{off, off, off, off}}},
         {memsave,{"memsave"},{{off, off, yes, off}}},
         {memsetgo,{"memset"},{{no, no, yes, off}}},
+        {memstageinit,{"init"},{{off, off, off, off}}},
+        {memstageread,{"stageread"},{{off, off, off, off}}},
+        {memstageload,{"load"},{{off, no, off, off}}},
+        {memstagereadloaded,{"stagereadloaded"},{{off, off, off, off}}},
+        {memstageloop,{"loop"},{{off, off, off, off}}}
     };
 }
 
@@ -55,8 +60,16 @@ SteeringMove Steering::handle(String message, vector<bool> conditions){
         }
         else return SteeringMove(type, angles, speed);
     }
-    else if(type.getOptionNumber()==memread || type.getOptionNumber()==memsave || type.getOptionNumber()==memsetgo){
+    else if(type.getOptionNumber()==memread || type.getOptionNumber()==memsave || 
+        type.getOptionNumber()==memsetgo || type.getOptionNumber()==memstageinit ||
+        type.getOptionNumber()==memstageread || type.getOptionNumber()==memstageload)
+        {
         type.setSubOptionNumber(decodeNumber(message));
+        if(type.getOptionNumber()==memstageinit){
+            vector<float>* code = nullptr;
+            code = decodeStagesAdvanced(message);
+            return SteeringMove(type, code);
+        }
     }
     return SteeringMove(type);
 }
@@ -140,8 +153,64 @@ vector<float>* Steering::decodeAngles(String message){
     return anglesP;
 }
 
+vector<float>* Steering::decodeStagesAdvanced(String message){
+    char delimiter=';';
+    char speedChar='s';
+    char waitChar='w';
+    char comma='.';
+    int waitAdd=1000;
+    int waitDiv=10;
+    int startIndex=message.indexOf('(');
+    int endIndex=message.indexOf(')');
+    if(endIndex==-1) endIndex=message.length();
+    else endIndex++;
+    if(startIndex==-1 || startIndex>=endIndex-1) return nullptr;
+    if(endIndex==-1) return nullptr;
+
+    vector<float> moveCode;
+    for(int i=startIndex+1; i<endIndex-1; i++){
+        if(isDigit(message[i])){
+            int digitStart=i;
+            bool isWaiting=false;
+            if(message[i]==waitChar){
+                i++;
+                isWaiting=true;
+            }
+            while(isDigit(message[i])){
+                i++;
+            }
+            float position=message.substring(digitStart, i).toInt();
+            Serial.print("possub:");
+            Serial.println(message.substring(digitStart, i));
+            if(isWaiting){
+                position/=waitDiv;
+                position+=waitAdd;
+            }
+            digitStart=i;
+            if(message[i]==speedChar){
+                while(isDigit(message[i]) || message[i]==comma){
+                    i++;
+                }
+                float speedcorr =message.substring(digitStart, i).toFloat();
+                Serial.print("speedcorr:");
+                Serial.println(message.substring(digitStart, i));
+                if(speedcorr>9) speedcorr=9;
+                else if(speedcorr<0.1) speedcorr=0.1;
+                position+=speedcorr/10;
+            }
+                i++;
+                moveCode.push_back(position);
+        }
+    }
+    moveCode.push_back(-1000);
+
+    vector<float>* moveCodeP = new vector<float>(moveCode);
+    return moveCodeP;
+}
+
 int Steering::decodeNumber(String message){
-    int startBackIndex=message.length()-1;
+    int startBackIndex=message.indexOf('(')-1;
+    if(startBackIndex==-1) startBackIndex=message.length()-1;
     for (size_t i = message.length()-1; i > 0; i--){
         if(isDigit(message[i])){
          startBackIndex=i;

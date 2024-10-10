@@ -6,6 +6,7 @@
 
 #define STEPPERS_NUM 6
 #define NUM_OF_AXIS 6
+#define TERMINATOR -1000
 
 #define MAX_SPEED_SCALING 1.5
 #define MIN_SPEED_SCALING 0.1
@@ -52,6 +53,7 @@ public:
     SteeringMove handle(String, vector<bool>);
     SteeringType readType(String);
     vector<float>* decodeAngles(String);
+    vector<float>* decodeStagesAdvanced(String);
     int decodeNumber(String);
     SteeringElement& getElement(size_t i) {return steering.at(i);};
     vector<String>& getElementNames(size_t i) {return steering.at(i).getElementNames();};
