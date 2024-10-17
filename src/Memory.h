@@ -3,9 +3,9 @@
 
 #define FILE_NAME "/positions.bin"
 #define FILE_NAME_2 "/stages.bin"
-#define STAGES_SIZE 32
-#define MAX_SIZE_POSITIONS 128
-#define MAX_SIZE_STAGES 24
+#define STAGES_SIZE 24
+#define MAX_SIZE_POSITIONS 64
+#define MAX_SIZE_STAGES 8
 
 #include "SPIFFS.h"
 #include "Arduino.h"

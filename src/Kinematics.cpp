@@ -106,7 +106,6 @@ vector<float> Kinematics::forwardKinematics(vector<float> angles){
         pos[i]-=toolOffset(i);
         pos[i]+=tool(i);
     }
-    Serial.println(tool);
 
     float roll=atan2(R06(2,1),R06(2,2))*180/PI;
     float pitch=asin(-R06(2,0))*180/PI;
