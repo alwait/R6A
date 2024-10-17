@@ -11,10 +11,10 @@ AccelStepper stepper1(AccelStepper::DRIVER, STEP_PIN_1, DIR_PIN_1);
 Joint joint1(20, 120, -180, 180);
 
 AccelStepper stepper2(AccelStepper::DRIVER, STEP_PIN_2, DIR_PIN_2);
-Joint joint2(20, 100, 45, -45, 90);
+Joint joint2(20, 100, 44.75, -45, 90);
 
 AccelStepper stepper3(AccelStepper::DRIVER, STEP_PIN_3, DIR_PIN_3);
-Joint joint3(20, 80, 65, -55, 195);
+Joint joint3(20, 80, 64.75, -55, 195);
 
 AccelStepper stepper4(AccelStepper::DRIVER, STEP_PIN_4, DIR_PIN_4);
 Joint joint4(16, 60, -180, 180);
@@ -68,6 +68,7 @@ void setup(){
   mutex = xSemaphoreCreateMutex();
   Serial.println("Serial begin");
   Serial.println("Robot started");
+
   // Calculations test forward/inverse kinematics
   Serial.println("HOME FORWARD/INVERSE-----");
   Serial.println(r6a.getKinematics().printInverseK(homePosition));
@@ -78,14 +79,9 @@ void setup(){
   Serial.println("HOME+(X100) FORWARD/INVERSE-----");
   Serial.println(r6a.getKinematics().printInverseK(homePosition3));
   Serial.println(r6a.getKinematics().printForwardK(r6a.getKinematics().inverseKinematics(homePosition3)));
-  //Serial.println("FORWARD------------------");
-  //Serial.println(r6a.getKinematics().printForwardK({0,30,30,0,0,0}));
-  //Serial.println(r6a.getKinematics().printForwardK({10,30,30,0,0,0}));
-  //Serial.println("INVERSE------------------");
-  //Serial.println(r6a.getKinematics().printInverseK({259.63,0.,163.44,0.,0.,0.}));
-  //Serial.println(r6a.getKinematics().printInverseK({255.68,45.08,163.44,10.,0.,0.}));
 
   r6a.memoryInit();
+  
 }
 
 void loop(){
@@ -139,12 +135,14 @@ void loop(){
   switch (SteeringMoveOption.getSteeringOption()){
   case start:
     option = stageMode;
+    SerialBT.println("Start stage movement");
     break;
 
   case offsetpos:
     digitalWrite(ENA_PIN, LOW);
     digitalWrite(LED_PIN, LOW);
     r6a.getOffset().setOffsetChange(true);
+    SerialBT.println("Offset change");
     break;
 
   case estop:
@@ -156,14 +154,17 @@ void loop(){
   case returnstop:
     digitalWrite(LED_PIN, LOW);
     r6a.getEmergencyStop().setReturnChange(true);
+    SerialBT.println("Safety returning");
     break;
 
   case home:
+    SerialBT.println("Homing");
     r6a.goHome();
     option = homeMode;
     break;
 
   case disable:
+    SerialBT.println("Disable robot");
     break;
 
   case test:
@@ -221,6 +222,7 @@ void loop(){
     break;
 
   case memsave:
+    SerialBT.println(r6a.getStringVector(r6a.currentAngles()));
     r6a.getMemory().writeVector(FILE_NAME, NUM_OF_AXIS ,SteeringMoveOption.getSteeringSubOption(),r6a.currentAngles());
     break;
 
@@ -231,6 +233,7 @@ void loop(){
 
   case memstageinit:
     SerialBT.println(r6a.getStringVector(r6a.getAngles(SteeringMoveOption.getValues())));
+    r6a.getMemory().writeVector(FILE_NAME_2, STAGES_SIZE ,SteeringMoveOption.getSteeringSubOption(),r6a.getAngles(SteeringMoveOption.getValues()));
     break;
 
   case memstageread:
@@ -238,15 +241,20 @@ void loop(){
     break;
 
   case memstageload:
-    // TODO loading stages to robot.StageMovement
+    SerialBT.println("Stage loaded");
+    r6a.getStageMovement().setLoadedStages(r6a.getMemory().readVector(FILE_NAME_2, STAGES_SIZE ,SteeringMoveOption.getSteeringSubOption()));
+    r6a.getStageMovement().resetLoadedNumber();
     break;
 
   case memstagereadloaded:
-    // TODO reading memory number from robot.StageMovement
+    SerialBT.println(r6a.getStringVector(r6a.getStageMovement().getLoadedStages()));
     break;
 
   case memstageloop:
-    // TODO setting loop stages in robot.StageMovement
+    r6a.getStageMovement().setLoopStages(!r6a.getStageMovement().getLoopStages());
+    SerialBT.print("Loop stages ");
+    if(r6a.getStageMovement().getLoopStages()){SerialBT.println("on");}
+    else {SerialBT.println("off");}
     break;
 
   default:
@@ -289,7 +297,7 @@ void loop(){
       r6a.moveOffset();       // Offset change if controlled
 
       if (option == stageMode){
-        option = standbyMode; // TODO stagemode 
+        option = r6a.handleStages(); // TODO stagemode 
       }
       if (option == testMode){
         option = r6a.moveTestStages(); // Moving stages example

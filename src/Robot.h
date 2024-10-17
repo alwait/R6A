@@ -53,6 +53,7 @@ public:
     Memory& getMemory() {return memory;};
     StageMovement& getStageMovement() {return stageMovement;};
     vector<float> getHomePosition() {return kinematics.getHomePosition();};
+    int handleStages();
     bool isRunning() {return running;}
     bool isEnable() {return running;}
     bool isStop() {return stop.isStop();}

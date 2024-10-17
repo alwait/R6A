@@ -351,14 +351,65 @@ vector<float> Robot::currentPositionWork(){
   return position;
 }
 
-vector<float> Robot::getAngles(const std::vector<float>* Angles){
-  vector<float> result(Angles->size(),-1); 
-  if (Angles != nullptr) {
-      for (size_t i = 0; i < Angles->size(); ++i) {
-          result[i] = (*Angles)[i];
+int Robot::handleStages(){
+  if(getStageMovement().getLoadedStages().size()<1) return standbyMode;
+  if((getStageMovement().isLoadedNumberOk() || getStageMovement().getLoopStages()) && getStageMovement().getLoadedNumber()<STAGES_SIZE){
+    if(!getStageMovement().isLoadedNumberOk() && getStageMovement().getLoopStages()){
+      getStageMovement().resetLoadedNumber();
+    }
+    if(getStageMovement().getDelay()){
+      if(millis()-getStageMovement().getDelayStartTime()>getStageMovement().getDelayTime()){
+        getStageMovement().setDelay(false);
       }
+      else return stageMode;
+    }
+    if(!getMove().getChange()){
+      float StageToDecode=getStageMovement().getLoadedStage(getStageMovement().getLoadedNumber());
+      
+      switch (getStageMovement().decodeStage(StageToDecode))
+      {
+      case movement:
+        getMove().setAngles(getMemory().readVector(FILE_NAME, NUM_OF_AXIS, getStageMovement().decodeMemoryMove(StageToDecode)));
+        getMove().setSpeedScaling(getStageMovement().decodeSpeed(StageToDecode));
+        getMove().setChange(true);
+        break;
+      case delaystage:
+        getStageMovement().setDelay(true);
+        getStageMovement().setDelayStartTime();
+        getStageMovement().setDelayTime(getStageMovement().decodeDelayMs(StageToDecode));
+        break;
+      case unknown:
+        break;
+
+      default:
+        break;
+      }
+      getStageMovement().incrementLoadedNumber();
+    }
+    return stageMode;
   }
-  return result;
+  else if(getStageMovement().getLoopStages()){
+    getStageMovement().resetLoadedNumber();
+    return stageMode;
+  }
+  else{
+    getStageMovement().resetLoadedNumber();
+    getMove().setAngles({0,0,0,0,0,0});
+    getMove().setSpeedScaling(1.0);
+    Serial.println("End of stages");
+    return standbyMode;
+  }
+}
+
+vector<float> Robot::getAngles(const std::vector<float>* Angles){
+  if (Angles != nullptr) {
+    vector<float> result(Angles->size(),-1); 
+    for (size_t i = 0; i < Angles->size(); ++i) {
+      result[i] = (*Angles)[i];
+    }
+    return result;
+  }
+  else return {};
 }
 
 vector<float> Robot::setAngles(const std::vector<float>* Angles){
