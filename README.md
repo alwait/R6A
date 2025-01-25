@@ -1,4 +1,4 @@
-6DOF Robot arm project 
+6DOF Robot arm project for Engineering Thesis
 ![R6A2_2024-Sep-06_05-27-51PM-000_CustomizedView26400472168_small_combined](https://github.com/user-attachments/assets/1253391b-7848-4cd0-9470-ac5976248d69)
 ![robot_zdjecie](https://github.com/user-attachments/assets/a380ad1e-f602-4f4a-9325-9cb57d952851)
 
